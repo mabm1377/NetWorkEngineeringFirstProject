@@ -1,5 +1,4 @@
 import javax.swing.*;
-import java.awt.event.*;
 import java.util.Iterator;
 import java.util.List;
 
@@ -7,12 +6,12 @@ import org.pcap4j.core.PcapAddress;
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.util.LinkLayerAddress;
 
-public class SnifferView extends JFrame implements ActionListener{
+public class SelectInterfaceView extends JFrame{
     JLabel jLabel;
-    JRadioButton interfacesButtons[]= null;
+    JRadioButton[] interfacesButtons = null;
     JButton startSniffButton;
     ButtonGroup buttonGroup;
-    SnifferView(String s,  List<PcapNetworkInterface> nifs) {
+    SelectInterfaceView(String s, List<PcapNetworkInterface> nifs) {
         super(s);
         jLabel = new JLabel();
         add(jLabel);
@@ -32,14 +31,12 @@ public class SnifferView extends JFrame implements ActionListener{
         }
         interfacesButtons[5].setSelected(true);
         startSniffButton = new JButton("start sniff");
-        startSniffButton.addActionListener(this);
         add(startSniffButton);
         heightCursor+=50;
         startSniffButton.setBounds(185,heightCursor,100,30);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(null);
         setLocation(250,100);
-        setVisible(true);
         setSize(1000,heightCursor+100);
     }
     public String generateInterfaceName(PcapNetworkInterface nif){
@@ -63,11 +60,7 @@ public class SnifferView extends JFrame implements ActionListener{
         return stringBuilder.toString();
     }
     public static void main(String[] args) {
-        new SnifferView("sniffer",new Sniffer().getAllNetworkInterfacesNames());
+        new SelectInterfaceView("sniffer",new Sniffer().getAllNetworkInterfacesNames());
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-
-    }
 }
