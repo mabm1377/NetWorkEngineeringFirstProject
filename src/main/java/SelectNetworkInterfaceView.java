@@ -6,12 +6,12 @@ import org.pcap4j.core.PcapAddress;
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.util.LinkLayerAddress;
 
-public class SelectInterfaceView extends JFrame{
+public class SelectNetworkInterfaceView extends JFrame{
     JLabel jLabel;
     JRadioButton[] interfacesButtons = null;
     JButton startSniffButton;
     ButtonGroup buttonGroup;
-    SelectInterfaceView(String s, List<PcapNetworkInterface> nifs) {
+    SelectNetworkInterfaceView(String s, List<PcapNetworkInterface> nifs) {
         super(s);
         jLabel = new JLabel();
         add(jLabel);
@@ -36,6 +36,7 @@ public class SelectInterfaceView extends JFrame{
         startSniffButton.setBounds(185,heightCursor,100,30);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(null);
+        setVisible(true);
         setLocation(250,100);
         setSize(1000,heightCursor+100);
     }
@@ -60,7 +61,7 @@ public class SelectInterfaceView extends JFrame{
         return stringBuilder.toString();
     }
     public static void main(String[] args) {
-        new SelectInterfaceView("sniffer",new Sniffer().getAllNetworkInterfacesNames());
+        new SelectNetworkInterfaceView("sniffer",new Sniffer().getAllNetworkInterfacesNames());
     }
 
 }
