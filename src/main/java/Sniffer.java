@@ -7,38 +7,62 @@ import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.core.PcapHandle;
 import org.pcap4j.core.BpfProgram.BpfCompileMode;
 
-import java.util.ArrayList;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.HashMap;
 import java.util.List;
 
 import exeptions.*;
 import org.pcap4j.packet.namednumber.IpNumber;
 
-public class Sniffer {
-    private ArrayList<Packet> currentCapturedPackets = new ArrayList<>();
-    private HashMap<String, Statistics> applicationStaticsMap = new HashMap<>();
-    private HashMap<String, Statistics> networkStaticsMap = new HashMap<>();
+public class Sniffer extends Thread {
+    private final HashMap<String, Statistics> applicationStatics = new HashMap<>();
+    private final HashMap<String, Statistics> networkStatics = new HashMap<>();
     private PcapNetworkInterface currentInterfaceInSniff = null;
     private PcapHandle pcapHandle = null;
-    private static Sniffer instance = null;
+    private PropertyChangeSupport support;
     private static final int READ_TIMEOUT = 10; // [ms]
-
     private static final int SNAPLEN = 65536; // [bytes]
+    private static final int BUFFER_SIZE = 1024 * 1024; // [bytes]
 
-    private static final int BUFFER_SIZE = 1 * 1024 * 1024; // [bytes]
+    public Sniffer() {
+        support = new PropertyChangeSupport(this);
+    }
+
+    public void addPropertyChangeListener(PropertyChangeListener pcl) {
+        support.addPropertyChangeListener(pcl);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener pcl) {
+        support.removePropertyChangeListener(pcl);
+    }
+
+    @Override
+    public void run() {
+        for (; ; ) {
+            try {
+                this.getNextPacket();
+            } catch (NotOpenException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
     public void printSniffedPacket() throws NotOpenException {
         getNextPacket();
         System.out.println("applicationLayer");
-        for(var asm :applicationStaticsMap.values()){
+        for (var asm : applicationStatics.values()) {
             System.out.println(asm.getStatistics());
         }
         System.out.println("***************************************************");
         System.out.println("networkLayer");
-        for(var nsm: networkStaticsMap.values()){
+        for (var nsm : networkStatics.values()) {
             System.out.println(nsm.getStatistics());
         }
         System.out.println("___________________________________________________");
     }
+
     public void setCurrentInterfaceInSniff(PcapNetworkInterface currentInterfaceInSniff) {
         this.currentInterfaceInSniff = currentInterfaceInSniff;
     }
@@ -66,81 +90,59 @@ public class Sniffer {
         }
     }
 
-    public Packet getNextPacket() throws NotOpenException {
+    public void updateApplicationStatics(String protocol, String srcPort, String dstPort, int length) {
+        synchronized (this) {
+            String key = protocol + "*" + srcPort + "*" + dstPort;
+            if (!applicationStatics.containsKey(key)) {
+                applicationStatics.put(key, new ApplicationStatics(length, protocol, srcPort, dstPort));
+            } else {
+                applicationStatics.get(key).update(length);
+            }
+            support.firePropertyChange("applicationStatics",null,applicationStatics);
+        }
+    }
+
+    public void updateNetworkStatics(String protocol, String srcAddr, String dstAddr, int length) {
+        String key = protocol + "*" + srcAddr + "*" + dstAddr;
+        if (!networkStatics.containsKey(key)) {
+            networkStatics.put(key, new NetworkStatics(length, protocol, srcAddr, dstAddr));
+        } else {
+            networkStatics.get(key).update(length);
+        }
+        support.firePropertyChange("networkStatics",null,networkStatics);
+    }
+
+    public void getNextPacket() throws NotOpenException {
         synchronized (this) {
             while (true) {
                 Packet packet = this.pcapHandle.getNextPacket();
                 if (packet != null) {
                     // application layer
                     if (packet.contains(TcpPacket.class)) {
-                        StringBuilder key = new StringBuilder();
                         TcpPacket tcpPacket = packet.get(TcpPacket.class);
                         TcpPacket.TcpHeader tcpHeader = tcpPacket.getHeader();
-                        key.append("tcp").append("*").append(tcpHeader.getSrcPort().toString()).append("*").append(tcpHeader.getDstPort().toString());
-                        if (!applicationStaticsMap.containsKey(key.toString())) {
-                            applicationStaticsMap.put(key.toString(), new ApplicationStatics(tcpPacket.length(), "tcp",
-                                    tcpHeader.getSrcPort().toString(), tcpHeader.getDstPort().toString()));
-                        } else {
-                            applicationStaticsMap.get(key.toString()).update(tcpPacket.length());
-                        }
+                        updateApplicationStatics("tcp", tcpHeader.getSrcPort().toString(), tcpHeader.getDstPort().toString(), tcpPacket.length());
                     }
-
                     if (packet.contains(UdpPacket.class)) {
-                        StringBuilder key = new StringBuilder();
                         UdpPacket udpPacket = packet.get(UdpPacket.class);
                         UdpPacket.UdpHeader udpHeader = udpPacket.getHeader();
-                        key.append("udp").append("*").append(udpHeader.getSrcPort().toString()).append("*").append(udpHeader.getDstPort().toString());
-                        if (!applicationStaticsMap.containsKey(key.toString())) {
-                            applicationStaticsMap.put(key.toString(), new ApplicationStatics(udpPacket.length(), "tcp",
-                                    udpHeader.getSrcPort().toString(), udpHeader.getDstPort().toString()));
-                        } else {
-                            applicationStaticsMap.get(key.toString()).update(udpHeader.length());
-                        }
+                        updateApplicationStatics("udp", udpHeader.getSrcPort().toString(), udpHeader.getDstPort().toString(), udpPacket.length());
                     }
                     // network layer
                     if (packet.contains(IpV4Packet.class)) {
                         IpV4Packet ipV4Packet = packet.get(IpV4Packet.class);
                         IpV4Packet.IpV4Header ipV4Header = ipV4Packet.getHeader();
                         if (ipV4Header.getProtocol().equals(IpNumber.TCP)) {
-                            StringBuilder key = new StringBuilder();
-                            key.append("tcp").append("*").append(ipV4Header.getSrcAddr().toString()).append("*").append(ipV4Header.getDstAddr().toString());
-                            if (!networkStaticsMap.containsKey(key.toString())) {
-                                networkStaticsMap.put(key.toString(), new NetworkStatics(ipV4Packet.length(), "tcp", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString()));
-                            }
-                            else {
-                                networkStaticsMap.get(key.toString()).update(ipV4Packet.length());
-                            }
+                            updateNetworkStatics("tcp", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString(), ipV4Packet.length());
                         } else if (ipV4Header.getProtocol().equals(IpNumber.UDP)) {
-                            StringBuilder key = new StringBuilder();
-                            key.append("udp").append("*").append(ipV4Header.getSrcAddr().toString()).append("*").append(ipV4Header.getDstAddr().toString());
-                            if (!networkStaticsMap.containsKey(key.toString())) {
-                                networkStaticsMap.put(key.toString(), new NetworkStatics(ipV4Packet.length(), "udp", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString()));
-                            }
-                            else {
-                                networkStaticsMap.get(key.toString()).update(ipV4Packet.length());
-                            }
+                            updateNetworkStatics("udp", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString(), ipV4Packet.length());
                         } else if (ipV4Header.getProtocol().equals(IpNumber.ICMPV4)) {
-                            StringBuilder key = new StringBuilder();
-                            key.append("icmpv4").append("*").append(ipV4Header.getSrcAddr().toString()).append("*").append(ipV4Header.getDstAddr().toString());
-                            if (!networkStaticsMap.containsKey(key.toString())) {
-                                networkStaticsMap.put(key.toString(), new NetworkStatics(ipV4Packet.length(), "icmpv4", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString()));
-                            }
-                            else {
-                                networkStaticsMap.get(key.toString()).update(ipV4Packet.length());
-                            }
-
+                            updateNetworkStatics("icmpv4", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString(), ipV4Packet.length());
                         } else if (ipV4Header.getProtocol().equals(IpNumber.IGMP)) {
-                            StringBuilder key = new StringBuilder();
-                            key.append("igmp").append("*").append(ipV4Header.getSrcAddr().toString()).append("*").append(ipV4Header.getDstAddr().toString());
-                            if (!networkStaticsMap.containsKey(key.toString())) {
-                                networkStaticsMap.put(key.toString(), new NetworkStatics(ipV4Packet.length(), "igmp", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString()));
-                            }
-                            else {
-                                networkStaticsMap.get(key.toString()).update(ipV4Packet.length());
-                            }
+                            updateNetworkStatics("igmp", ipV4Header.getSrcAddr().toString(), ipV4Header.getDstAddr().toString(), ipV4Packet.length());
                         }
                     }
-                    return packet;
+                    return;
                 }
             }
         }
