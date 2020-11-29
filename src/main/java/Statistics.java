@@ -1,8 +1,8 @@
 import org.pcap4j.packet.Packet;
 
 abstract class Statistics {
-    int maxLength = Integer.MAX_VALUE;
-    int minLength = Integer.MIN_VALUE;
+    int maxLength = Integer.MIN_VALUE;
+    int minLength = Integer.MAX_VALUE;
     double averageLength = 0;
     String protocol = "";
     int numberOfPacketSniffed = 0;

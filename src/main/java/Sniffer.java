@@ -33,7 +33,6 @@ public class Sniffer implements Runnable {
     }
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {
-
         support.addPropertyChangeListener(pcl);
     }
 
