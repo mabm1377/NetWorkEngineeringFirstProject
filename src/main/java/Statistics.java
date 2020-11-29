@@ -51,13 +51,10 @@ abstract class Statistics {
         return protocol;
     }
 
-    public String getStatistics() {
-        return null;
-    }
     public void  update(int length){
         this.averageLength = (this.averageLength*numberOfPacketSniffed+ length)/(++this.numberOfPacketSniffed);
         this.maxLength = Math.max(this.maxLength,length);
-        this.minLength = Math.min(this.maxLength,length);
+        this.minLength = Math.min(this.minLength,length);
     }
 
 }

@@ -26,15 +26,13 @@ public class NetworkStatics extends Statistics {
     }
 
     @Override
-    public String getStatistics() {
-        return new StringBuilder().
-                append("protocol:").append(protocol).
-                append("     sourceIp:").append(sourceIp).
-                append("     destinationIp:").append(destinationIp).
-                append("     averageLength:").append(this.averageLength).
-                append("     averageLength:").append(this.maxLength).
-                append("     minLength:").append(this.minLength).
-                append("     numberOfPacketSniffed:").append(this.numberOfPacketSniffed).
-                toString();
+    public String toString() {
+        return "protocol:" + protocol +
+                "     sourceIp:" + sourceIp +
+                "     destinationIp:" + destinationIp +
+                "     averageLength:" + this.averageLength +
+                "     maxLength:" + this.maxLength +
+                "     minLength:" + this.minLength +
+                "     numberOfPacketSniffed:" + this.numberOfPacketSniffed;
     }
 }

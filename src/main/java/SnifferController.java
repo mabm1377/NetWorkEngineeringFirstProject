@@ -1,13 +1,21 @@
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import exeptions.InterFaceNotSelected;
+import org.pcap4j.core.PcapNativeException;
+import org.pcap4j.core.PcapNetworkInterface;
 public class SnifferController implements ActionListener {
-    private Sniffer sniffer= null;
-    private SelectNetworkInterfaceView selectInterfaceView = null;
+    private Sniffer sniffer;
+    private Thread snifferRunner;
+    private SelectNetworkInterfaceView selectInterfaceView;
+    private PacketsListView packetsListView;
     private static SnifferController instance = null;
     private SnifferController() {
         sniffer = new Sniffer();
+        snifferRunner =new Thread(sniffer);
         selectInterfaceView = new SelectNetworkInterfaceView("sniffer", sniffer.getAllNetworkInterfacesNames());
+        packetsListView = new PacketsListView("sniffing",2000,2000);
+        sniffer.addPropertyChangeListener(packetsListView);
         selectInterfaceView.startSniffButton.addActionListener(this);
     }
     public static SnifferController getInstance() {
@@ -19,6 +27,22 @@ public class SnifferController implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+        if(e.getSource() == selectInterfaceView.startSniffButton){
+            selectInterfaceView.setVisible(false);
+            PcapNetworkInterface nif = selectInterfaceView.getSelectedInterFace();
+            sniffer.setCurrentInterfaceInSniff(nif);
+            try {
+                sniffer.createPcapHandle();
+                snifferRunner.start();
+                packetsListView.setVisible(true);
 
+            } catch (PcapNativeException | InterFaceNotSelected pcapNativeException) {
+                pcapNativeException.printStackTrace();
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+     SnifferController.getInstance();
     }
 }

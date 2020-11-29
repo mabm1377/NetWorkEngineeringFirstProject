@@ -15,13 +15,16 @@ import java.util.List;
 import exeptions.*;
 import org.pcap4j.packet.namednumber.IpNumber;
 
-public class Sniffer extends Thread {
+public class Sniffer implements Runnable {
     private final HashMap<String, Statistics> applicationStatics = new HashMap<>();
     private final HashMap<String, Statistics> networkStatics = new HashMap<>();
     private PcapNetworkInterface currentInterfaceInSniff = null;
+    private volatile boolean running = true;
+    private volatile boolean paused = false;
+    private final Object pauseLock = new Object();
     private PcapHandle pcapHandle = null;
-    private PropertyChangeSupport support;
-    private static final int READ_TIMEOUT = 10; // [ms]
+    private final PropertyChangeSupport support;
+    private static final int READ_TIMEOUT = 50; // [ms]
     private static final int SNAPLEN = 65536; // [bytes]
     private static final int BUFFER_SIZE = 1024 * 1024; // [bytes]
 
@@ -39,26 +42,56 @@ public class Sniffer extends Thread {
 
     @Override
     public void run() {
-        for (; ; ) {
+        while (running){
+            synchronized (pauseLock){
+                if(!running){
+                    break;
+                }
+                if(paused){
+                    try {
+                        pauseLock.wait();
+                    }
+                    catch (InterruptedException ex){
+                        break;
+                    }
+                    if(!running){
+                        break;
+                    }
+                }
+            }
             try {
-                this.getNextPacket();
+                getNextPacket();
             } catch (NotOpenException e) {
                 e.printStackTrace();
             }
         }
     }
 
+    public void stop() {
+        running = false;
+        resume();
+    }
 
+    public void pause() {
+        paused = true;
+    }
+
+    public void resume() {
+        synchronized (pauseLock) {
+            paused = false;
+            pauseLock.notify(); // Unblocks thread
+        }
+    }
     public void printSniffedPacket() throws NotOpenException {
         getNextPacket();
         System.out.println("applicationLayer");
         for (var asm : applicationStatics.values()) {
-            System.out.println(asm.getStatistics());
+            System.out.println(asm.toString());
         }
         System.out.println("***************************************************");
         System.out.println("networkLayer");
         for (var nsm : networkStatics.values()) {
-            System.out.println(nsm.getStatistics());
+            System.out.println(nsm.toString());
         }
         System.out.println("___________________________________________________");
     }
@@ -157,13 +190,14 @@ public class Sniffer extends Thread {
         }
     }
 
-    public static void main(String[] args) throws PcapNativeException, InterFaceNotSelected, NotOpenException, PcapHandlerNotInitialized {
-        Sniffer sniffer = new Sniffer();
-        var nifs = sniffer.getAllNetworkInterfacesNames();
-        sniffer.setCurrentInterfaceInSniff(nifs.get(5));
-        sniffer.createPcapHandle();
-        for (int i = 0; i < 15; i++) {
-            sniffer.printSniffedPacket();
-        }
+    public static void main(String[] args) throws PcapNativeException, InterFaceNotSelected, NotOpenException, PcapHandlerNotInitialized, InterruptedException {
+//        Sniffer sniffer = new Sniffer();
+//        var nifs = sniffer.getAllNetworkInterfacesNames();
+//        sniffer.setCurrentInterfaceInSniff(nifs.get(5));
+//        sniffer.createPcapHandle();
+//        PacketsListView packetsListView = new PacketsListView("test",1500,1500);
+//        sniffer.addPropertyChangeListener(packetsListView);
+//        Thread snifferRunner = new Thread(sniffer);
+//        snifferRunner.start();
     }
 }

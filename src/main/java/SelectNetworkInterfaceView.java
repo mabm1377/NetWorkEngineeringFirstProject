@@ -11,8 +11,10 @@ public class SelectNetworkInterfaceView extends JFrame{
     JRadioButton[] interfacesButtons = null;
     JButton startSniffButton;
     ButtonGroup buttonGroup;
+    List<PcapNetworkInterface> nifs;
     SelectNetworkInterfaceView(String s, List<PcapNetworkInterface> nifs) {
         super(s);
+        this.nifs = nifs;
         jLabel = new JLabel();
         add(jLabel);
         jLabel.setText("please select interface for sniff");
@@ -39,6 +41,14 @@ public class SelectNetworkInterfaceView extends JFrame{
         setVisible(true);
         setLocation(250,100);
         setSize(1000,heightCursor+100);
+    }
+    public PcapNetworkInterface getSelectedInterFace(){
+        for(int i=0; i< interfacesButtons.length; i++){
+            if(interfacesButtons[i].isSelected()){
+                return nifs.get(i);
+            }
+        }
+        return nifs.get(5);
     }
     public String generateInterfaceName(PcapNetworkInterface nif){
         StringBuilder stringBuilder = new StringBuilder();

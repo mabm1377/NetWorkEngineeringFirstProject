@@ -27,15 +27,13 @@ public class ApplicationStatics extends Statistics {
     }
 
     @Override
-    public String getStatistics() {
-        return new StringBuilder().
-                append("protocol:").append(protocol).
-                append("     sourcePort:").append(sourcePort).
-                append("     destinationPort:").append(destinationPort).
-                append("     averageLength:").append(this.averageLength).
-                append("     averageLength:").append(this.maxLength).
-                append("     minLength:").append(this.minLength).
-                append("     numberOfPacketSniffed:").append(this.numberOfPacketSniffed).
-                toString();
+    public String toString() {
+        return "protocol:" + protocol +
+                "     sourcePort:" + sourcePort +
+                "     destinationPort:" + destinationPort +
+                "     averageLength:" + this.averageLength +
+                "     maxLength:" + this.maxLength +
+                "     minLength:" + this.minLength +
+                "     numberOfPacketSniffed:" + this.numberOfPacketSniffed;
     }
 }
